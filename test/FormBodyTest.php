@@ -3,12 +3,13 @@
 namespace Amp\Artax\Test;
 
 use Amp\Artax\FormBody;
-use Amp\ByteStream\Message;
 use Amp\PHPUnit\TestCase;
-use function Amp\Promise\wait;
+use function Amp\ByteStream\buffer;
 
-class FormBodyTest extends TestCase {
-    public function testUrlEncoded() {
+class FormBodyTest extends TestCase
+{
+    public function testUrlEncoded(): void
+    {
         $body = new FormBody();
         $body->addFields([
             'a' => 'a',
@@ -20,13 +21,14 @@ class FormBodyTest extends TestCase {
             'e' => 'e',
         ], '');
         $body->addFields([
-            'f' => 'f'
+            'f' => 'f',
         ]);
-        $content = wait(new Message($body->createBodyStream()));
+        $content = buffer($body->createBodyStream());
         $this->assertEquals("a=a&b=b&c=c&d=d&e=e&f=f", $content);
     }
 
-    public function testMultiPartFields() {
+    public function testMultiPartFields(): void
+    {
         $body = new FormBody('ea4ba2aa9af22673bc01ae7a64c95440');
         $body->addFields([
             'a' => 'a',
@@ -38,11 +40,11 @@ class FormBodyTest extends TestCase {
             'e' => 'e',
         ], '');
         $body->addFields([
-            'f' => 'f'
+            'f' => 'f',
         ]);
-        $file = __DIR__.'/fixture/lorem.txt';
+        $file = __DIR__ . '/fixture/lorem.txt';
         $body->addFile('file', $file);
-        $content = wait(new Message($body->createBodyStream()));
+        $content = buffer($body->createBodyStream());
         $this->assertEquals("--ea4ba2aa9af22673bc01ae7a64c95440\r
 Content-Disposition: form-data; name=\"a\"\r
 Content-Type: application/json\r

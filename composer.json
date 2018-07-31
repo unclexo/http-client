@@ -1,7 +1,9 @@
 {
     "name": "amphp/artax",
     "homepage": "https://github.com/amphp/artax",
-    "description": "Asynchronous parallel HTTP/1.1 client built on the Amp concurrency framework",
+    "description": "Asynchronous concurrent HTTP/1.1 client built on the Amp concurrency framework",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "keywords": [
         "http",
         "rest",
@@ -22,18 +24,22 @@
         }
     ],
     "require": {
-        "php": ">=7.0",
-        "amphp/amp": "^2",
-        "amphp/byte-stream": "^1.1.6",
-        "amphp/socket": "^0.10.5",
+        "php": ">=7.2",
+        "amphp/amp": "dev-ext-async",
+        "amphp/byte-stream": "dev-ext-async",
+        "amphp/socket": "dev-ext-async",
         "amphp/uri": "^0.1",
-        "amphp/file": "^0.2 || ^0.3",
-        "kelunik/certificate": "^1.1"
+        "amphp/file": "dev-ext-async",
+        "kelunik/certificate": "^1.1",
+        "league/uri-parser": "^1.4",
+        "league/uri-schemes": "^1.2",
+        "psr/http-message": "^1.0",
+        "amphp/http": "^1.0"
     },
     "require-dev": {
+        "amphp/php-cs-fixer-config": "dev-master",
         "amphp/phpunit-util": "^1",
-        "phpunit/phpunit": "^6",
-        "friendsofphp/php-cs-fixer": "^2.3"
+        "phpunit/phpunit": "^6"
     },
     "autoload": {
         "psr-4": {
@@ -47,7 +53,7 @@
     },
     "config": {
         "platform": {
-            "php": "7.0.0"
+            "php": "7.2.0"
         }
     }
 }

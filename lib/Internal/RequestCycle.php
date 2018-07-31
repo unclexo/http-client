@@ -4,14 +4,15 @@ namespace Amp\Artax\Internal;
 
 use Amp\Artax\Request;
 use Amp\Artax\Response;
-use Amp\CancellationToken;
-use Amp\Deferred;
+use Amp\Cancellation\Token;
 use Amp\Emitter;
 use Amp\Socket\ClientSocket;
 use Amp\Struct;
 use Amp\Uri\Uri;
+use Concurrent\Deferred;
 
-class RequestCycle {
+class RequestCycle
+{
     use Struct;
 
     /** @var string */
@@ -19,9 +20,6 @@ class RequestCycle {
 
     /** @var Request */
     public $request;
-
-    /** @var Uri */
-    public $uri;
 
     /** @var array */
     public $options;
@@ -41,7 +39,7 @@ class RequestCycle {
     /** @var ClientSocket */
     public $socket;
 
-    /** @var CancellationToken */
+    /** @var Token */
     public $cancellation;
 
     /** @var int */

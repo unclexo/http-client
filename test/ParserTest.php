@@ -5,11 +5,13 @@ namespace Amp\Artax\Test;
 use Amp\Artax\Internal\Parser;
 use PHPUnit\Framework\TestCase;
 
-class ParserTest extends TestCase {
+class ParserTest extends TestCase
+{
     /**
      * @dataProvider provideParseExpectations
      */
-    public function testParse($msg, $method, $uri, $protocol, $headers, $body) {
+    public function testParse($msg, $method, $uri, $protocol, $headers, $body): void
+    {
         $actualBody = "";
 
         $msgParser = new Parser(static function ($chunk) use (&$actualBody) {
@@ -29,7 +31,8 @@ class ParserTest extends TestCase {
         $this->assertEquals($body, $actualBody);
     }
 
-    public function testKeepAliveHeadResponseParse() {
+    public function testKeepAliveHeadResponseParse(): void
+    {
         $request = "HTTP/1.1 200 OK\n\n";
         $msgParser = new Parser(null, Parser::MODE_RESPONSE);
         $msgParser->enqueueResponseMethodMatch('HEAD');
@@ -41,7 +44,8 @@ class ParserTest extends TestCase {
     /**
      * @dataProvider provideParseExpectations
      */
-    public function testIncrementalParse($msg, $method, $uri, $protocol, $headers, $body) {
+    public function testIncrementalParse($msg, $method, $uri, $protocol, $headers, $body): void
+    {
         $actualBody = "";
 
         $msgParser = new Parser(static function ($chunk) use (&$actualBody) {
@@ -79,7 +83,8 @@ class ParserTest extends TestCase {
         $this->assertEquals($body, $actualBody);
     }
 
-    public function provideParseExpectations() {
+    public function provideParseExpectations(): array
+    {
         $return = [];
 
         // 0 -------------------------------------------------------------------------------------->

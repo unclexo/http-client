@@ -3,7 +3,6 @@
 namespace Amp\Artax;
 
 use Amp\ByteStream\InputStream;
-use Amp\Promise;
 
 /**
  * An interface for generating HTTP message bodies + headers.
@@ -14,9 +13,9 @@ interface RequestBody {
      *
      * The resolved promise value must be a key-value array mapping header fields to values.
      *
-     * @return Promise
+     * @return array
      */
-    public function getHeaders(): Promise;
+    public function getHeaders(): array;
 
     /**
      * Create the HTTP message body to be sent.
@@ -30,7 +29,7 @@ interface RequestBody {
     /**
      * Retrieve the HTTP message body length. If not available, return -1.
      *
-     * @return Promise
+     * @return int
      */
-    public function getBodyLength(): Promise;
+    public function getBodyLength(): int;
 }

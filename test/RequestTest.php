@@ -6,8 +6,10 @@ use Amp\Artax\Request;
 use Amp\Artax\StringBody;
 use Amp\PHPUnit\TestCase;
 
-class RequestTest extends TestCase {
-    public function provideInvalidProtocolVersions() {
+class RequestTest extends TestCase
+{
+    public function provideInvalidProtocolVersions(): array
+    {
         return [
             ["HTTP/1.0"],
             ["HTTP/1.1"],
@@ -18,41 +20,46 @@ class RequestTest extends TestCase {
     }
 
     /** @dataProvider provideInvalidProtocolVersions */
-    public function testProtocolVersionsAcceptsNoInvalidValues($invalidVersion) {
+    public function testProtocolVersionsAcceptsNoInvalidValues($invalidVersion): void
+    {
         $this->expectException(\Error::class);
         $this->expectExceptionMessage("Invalid HTTP protocol version");
-        (new Request("http://127.0.0.1/"))->withProtocolVersions([$invalidVersion]);
+        Request::fromString("http://127.0.0.1/")->withProtocolVersions([$invalidVersion]);
     }
 
-    public function testProtocolVersionsAcceptsNoEmptyArray() {
+    public function testProtocolVersionsAcceptsNoEmptyArray(): void
+    {
         $this->expectException(\Error::class);
         $this->expectExceptionMessage("Empty array of protocol versions provided, must not be empty.");
-        (new Request("http://127.0.0.1/"))->withProtocolVersions([]);
+        Request::fromString("http://127.0.0.1/")->withProtocolVersions([]);
     }
 
-    public function testProtocolVersionsAcceptsValidInput() {
-        $request = (new Request("http://127.0.0.1/"))->withProtocolVersions(["1.0"]);
+    public function testProtocolVersionsAcceptsValidInput(): void
+    {
+        $request = Request::fromString("http://127.0.0.1/")->withProtocolVersions(["1.0"]);
         $this->assertSame(["1.0"], $request->getProtocolVersions());
 
-        $request = (new Request("http://127.0.0.1/"))->withProtocolVersions(["1.0", "2.0"]);
+        $request = Request::fromString("http://127.0.0.1/")->withProtocolVersions(["1.0", "2.0"]);
         $this->assertSame(["1.0", "2.0"], $request->getProtocolVersions());
     }
 
-    public function testProtocolVersionsReturnsSameInstanceWithoutChange() {
-        $request1 = (new Request("http://127.0.0.1/"))->withProtocolVersions(["1.0"]);
+    public function testProtocolVersionsReturnsSameInstanceWithoutChange(): void
+    {
+        $request1 = Request::fromString("http://127.0.0.1/")->withProtocolVersions(["1.0"]);
         $request2 = $request1->withProtocolVersions(["1.0"]);
         $this->assertSame($request1, $request2);
     }
 
-    public function testMethodReturnsSameInstanceWithoutChange() {
-        $request1 = new Request("http://127.0.0.1/");
+    public function testMethodReturnsSameInstanceWithoutChange(): void
+    {
+        $request1 = Request::fromString("http://127.0.0.1/");
         $request2 = $request1->withMethod("GET");
         $this->assertSame($request1, $request2);
     }
 
-    public function testHeader() {
-        /** @var Request $request */
-        $request = new Request("http://127.0.0.1/");
+    public function testHeader(): void
+    {
+        $request = Request::fromString("http://127.0.0.1/");
         $this->assertNull($request->getHeader("X-Foo"));
         $this->assertSame([], $request->getHeaderArray("X-Foo"));
 
@@ -69,7 +76,7 @@ class RequestTest extends TestCase {
         $this->assertSame(["bar"], $request->getHeaderArray("X-Foo"));
 
         $this->assertSame([
-            "x-foo" => ["bar"]
+            "x-foo" => ["bar"],
         ], $request->getHeaders());
 
         $request = $request->withHeaders([
@@ -99,26 +106,29 @@ class RequestTest extends TestCase {
         ], $request->getHeaders(true));
     }
 
-    public function provideBadAllHeaderInput() {
+    public function provideBadAllHeaderInput(): array
+    {
         return [
             [[
                 "text" => [null],
             ]],
             [[
                 "text" => null,
-            ]]
+            ]],
         ];
     }
 
     /** @dataProvider provideBadAllHeaderInput */
-    public function testAllHeaders($input) {
+    public function testAllHeaders($input): void
+    {
         $this->expectException(\TypeError::class);
-        (new Request("http://127.0.0.1/"))->withHeaders($input);
+        Request::fromString("http://127.0.0.1/")->withHeaders($input);
     }
 
-    public function testBody() {
+    public function testBody(): void
+    {
         /** @var Request $request */
-        $request = new Request("http://127.0.0.1/");
+        $request = Request::fromString("http://127.0.0.1/");
         $this->assertInstanceOf(StringBody::class, $request->getBody());
 
         $request = $request->withBody(null);

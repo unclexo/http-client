@@ -4,25 +4,28 @@ namespace Amp\Artax;
 
 use Amp\ByteStream\InMemoryStream;
 use Amp\ByteStream\InputStream;
-use Amp\Promise;
-use Amp\Success;
 
-final class StringBody implements RequestBody {
+final class StringBody implements RequestBody
+{
     private $body;
 
-    public function __construct(string $body) {
+    public function __construct(string $body)
+    {
         $this->body = $body;
     }
 
-    public function createBodyStream(): InputStream {
+    public function createBodyStream(): InputStream
+    {
         return new InMemoryStream($this->body);
     }
 
-    public function getHeaders(): Promise {
-        return new Success([]);
+    public function getHeaders(): array
+    {
+        return [];
     }
 
-    public function getBodyLength(): Promise {
-        return new Success(\strlen($this->body));
+    public function getBodyLength(): int
+    {
+        return \strlen($this->body);
     }
 }

@@ -2,16 +2,18 @@
 
 namespace Amp\Artax\Internal;
 
-use Amp\CancellationToken;
-use Amp\CancellationTokenSource;
+use Amp\Cancellation\Token;
+use Amp\Cancellation\TokenSource;
 
 /** @internal */
-class CombinedCancellationToken implements CancellationToken {
+class CombinedCancellationToken implements Token
+{
     private $token;
     private $tokens = [];
 
-    public function __construct(CancellationToken ...$tokens) {
-        $tokenSource = new CancellationTokenSource;
+    public function __construct(Token ...$tokens)
+    {
+        $tokenSource = new TokenSource;
         $this->token = $tokenSource->getToken();
 
         foreach ($tokens as $token) {
@@ -23,30 +25,35 @@ class CombinedCancellationToken implements CancellationToken {
         }
     }
 
-    public function __destruct() {
-        foreach ($this->tokens as list($token, $id)) {
-            /** @var CancellationToken $token */
+    public function __destruct()
+    {
+        foreach ($this->tokens as [$token, $id]) {
+            /** @var Token $token */
             $token->unsubscribe($id);
         }
     }
 
     /** @inheritdoc */
-    public function subscribe(callable $callback): string {
+    public function subscribe(callable $callback): string
+    {
         return $this->token->subscribe($callback);
     }
 
     /** @inheritdoc */
-    public function unsubscribe(string $id) {
+    public function unsubscribe(string $id): void
+    {
         $this->token->unsubscribe($id);
     }
 
     /** @inheritdoc */
-    public function isRequested(): bool {
+    public function isRequested(): bool
+    {
         return $this->token->isRequested();
     }
 
     /** @inheritdoc */
-    public function throwIfRequested() {
+    public function throwIfRequested(): void
+    {
         $this->token->throwIfRequested();
     }
 }

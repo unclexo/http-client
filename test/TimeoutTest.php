@@ -5,33 +5,34 @@ namespace Amp\Test\Artax;
 use Amp\Artax\Client;
 use Amp\Artax\DefaultClient;
 use Amp\Artax\HttpSocketPool;
-use Amp\Artax\Response;
+use Amp\Artax\Request;
 use Amp\Artax\TimeoutException;
-use Amp\CancellationToken;
-use Amp\Deferred;
+use Amp\ByteStream\StreamException;
+use Amp\Cancellation\Token;
 use Amp\Loop;
 use Amp\PHPUnit\TestCase;
-use Amp\Promise;
 use Amp\Socket;
 use Amp\Socket\ClientSocket;
-use function Amp\asyncCall;
-use function Amp\Promise\wait;
+use Concurrent\Deferred;
+use Concurrent\Task;
 
-class TimeoutTest extends TestCase {
+class TimeoutTest extends TestCase
+{
     /** @var DefaultClient */
     private $client;
 
-    public function setUp() {
+    public function setUp()
+    {
         $this->client = new DefaultClient;
     }
 
-    public function testTimeoutDuringBody() {
+    public function testTimeoutDuringBody(): void
+    {
         $server = Socket\listen("tcp://127.0.0.1:0");
 
-        asyncCall(function () use ($server) {
-            /** @var Socket\ClientSocket $client */
-            while ($client = yield $server->accept()) {
-                yield $client->write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n.");
+        Task::async(function () use ($server) {
+            while ($client = $server->accept()) {
+                $client->write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n.");
 
                 Loop::delay(3000, function () use ($client) {
                     $client->close();
@@ -43,24 +44,27 @@ class TimeoutTest extends TestCase {
             $uri = "http://" . $server->getAddress() . "/";
 
             $start = \microtime(true);
-            $promise = $this->client->request($uri, [Client::OP_TRANSFER_TIMEOUT => 100]);
+            $response = $this->client->request(Request::fromString($uri), [Client::OP_TRANSFER_TIMEOUT => 100]);
 
-            /** @var Response $response */
-            $response = wait($promise);
-            $this->expectException(TimeoutException::class);
-            $this->expectExceptionMessage("Allowed transfer timeout exceeded: 100 ms");
-            wait($response->getBody());
+            $this->expectException(StreamException::class);
+            $this->expectExceptionMessage("Unexpected exception during read()");
+            $response->getBody()->buffer();
         } finally {
             $this->assertLessThan(0.6, \microtime(true) - $start);
             $server->close();
         }
     }
 
-    public function testTimeoutDuringConnect() {
-        Loop::repeat(1000, function () { /* dummy watcher, because socket pool doesn't do anything */ });
+    public function testTimeoutDuringConnect(): void
+    {
+        Loop::repeat(1000, function () {
+            // dummy watcher, because socket pool doesn't do anything
+        });
 
-        $this->client = new DefaultClient(null, new HttpSocketPool(new class implements Socket\SocketPool {
-            public function checkout(string $uri, CancellationToken $token = null): Promise {
+        $this->client = new DefaultClient(new HttpSocketPool(new class implements Socket\SocketPool
+        {
+            public function checkout(string $uri, Token $token = null): ClientSocket
+            {
                 $deferred = new Deferred;
 
                 if ($token) {
@@ -69,35 +73,37 @@ class TimeoutTest extends TestCase {
                     });
                 }
 
-                return $deferred->promise(); // never resolve
+                Task::await($deferred->awaitable()); // never resolve
             }
 
-            public function checkin(ClientSocket $socket) {
+            public function checkin(ClientSocket $socket): void
+            {
                 // ignore
             }
 
-            public function clear(ClientSocket $socket) {
+            public function clear(ClientSocket $socket): void
+            {
                 // ignore
             }
         }));
 
         $this->expectException(TimeoutException::class);
-        $this->expectExceptionMessage("Allowed transfer timeout exceeded: 100 ms");
+        $this->expectExceptionMessage("Connection to 'localhost:1337' timed out");
 
         $this->assertRunTimeLessThan(function () {
-            wait($this->client->request("http://localhost:1337/", [Client::OP_TRANSFER_TIMEOUT => 100]));
+            $this->client->request(Request::fromString("http://localhost:1337/"), [Client::OP_TRANSFER_TIMEOUT => 100]);
         }, 600);
     }
 
-    public function testTimeoutDuringTlsEnable() {
+    public function testTimeoutDuringTlsEnable(): void
+    {
         $tlsContext = (new Socket\ServerTlsContext)
             ->withDefaultCertificate(new Socket\Certificate(__DIR__ . "/tls/amphp.org.pem"));
 
         $server = Socket\listen("tcp://127.0.0.1:0", null, $tlsContext);
 
-        asyncCall(function () use ($server) {
-            /** @var Socket\ClientSocket $client */
-            while ($client = yield $server->accept()) {
+        Task::async(function () use ($server) {
+            while ($client = $server->accept()) {
                 Loop::delay(3000, function () use ($client) {
                     $client->close();
                 });
@@ -108,11 +114,12 @@ class TimeoutTest extends TestCase {
             $uri = "http://" . $server->getAddress() . "/";
 
             $start = \microtime(true);
-            $promise = $this->client->request($uri, [Client::OP_TRANSFER_TIMEOUT => 100]);
 
             $this->expectException(TimeoutException::class);
-            $this->expectExceptionMessage("Allowed transfer timeout exceeded: 100 ms");
-            wait($promise);
+            $this->expectExceptionMessageRegExp("(Response for \"http://127.0.0.1:\d+/\" didn't finish within 100 ms, aborting)");
+
+            $this->client->request(Request::fromString($uri), [Client::OP_TRANSFER_TIMEOUT => 100]);
+
         } finally {
             $this->assertLessThan(0.6, \microtime(true) - $start);
             $server->close();
