@@ -1,42 +1,38 @@
 <?php
 
-use Amp\Artax\Response;
-use Amp\Loop;
+use Amp\Artax\HttpException;
+use Amp\Artax\Request;
+use Amp\ByteStream\StreamException;
+use Concurrent\Task;
+use function Concurrent\all;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-Loop::run(function () {
-    $uris = [
-        "https://google.com/",
-        "https://github.com/",
-        "https://stackoverflow.com/",
-    ];
+$uris = [
+    "https://google.com/",
+    "https://github.com/",
+    "https://stackoverflow.com/",
+];
 
-    // Instantiate the HTTP client
-    $client = new Amp\Artax\DefaultClient;
+// Instantiate the HTTP client
+$client = new Amp\Artax\DefaultClient;
 
-    $requestHandler = function (string $uri) use ($client) {
-        /** @var Response $response */
-        $response = yield $client->request($uri);
+try {
+    $awaitables = [];
 
-        return $response->getBody();
-    };
+    foreach ($uris as $uri) {
+        $awaitables[$uri] = Task::async(function (string $uri) use ($client) {
+            $response = $client->request(Request::fromString($uri));
 
-    try {
-        $promises = [];
-
-        foreach ($uris as $uri) {
-            $promises[$uri] = Amp\call($requestHandler, $uri);
-        }
-
-        $bodies = yield $promises;
-
-        foreach ($bodies as $uri => $body) {
-            print $uri . " - " . \strlen($body) . " bytes" . PHP_EOL;
-        }
-    } catch (Amp\Artax\HttpException $error) {
-        // If something goes wrong Amp will throw the exception where the promise was yielded.
-        // The Client::request() method itself will never throw directly, but returns a promise.
-        echo $error;
+            return $response->getBody()->buffer();
+        }, $uri);
     }
-});
+
+    $bodies = Task::await(all($awaitables));
+
+    foreach ($bodies as $uri => $body) {
+        print $uri . " - " . \strlen($body) . " bytes" . PHP_EOL;
+    }
+} catch (HttpException | StreamException $error) {
+    print $error;
+}

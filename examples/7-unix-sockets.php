@@ -1,36 +1,30 @@
 <?php
 
+use Amp\Artax\HttpException;
 use Amp\Artax\HttpSocketPool;
 use Amp\Artax\Request;
-use Amp\Artax\Response;
-use Amp\Loop;
+use Amp\ByteStream\StreamException;
 use Amp\Socket\StaticSocketPool;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-Loop::run(function () {
-    try {
-        // Unix sockets require a socket pool that changes all URLs to a fixed one.
-        $socketPool = new StaticSocketPool("unix:///var/run/docker.sock");
-        $client = new Amp\Artax\DefaultClient(null, new HttpSocketPool($socketPool));
+try {
+    // Unix sockets require a socket pool that changes all URLs to a fixed one.
+    $socketPool = new StaticSocketPool("unix:///var/run/docker.sock");
+    $client = new Amp\Artax\DefaultClient(null, new HttpSocketPool($socketPool));
 
-        // Artax currently requires a host, so just use a dummy one.
-        $request = new Request('http://docker/info');
-        $promise = $client->request($request);
+    // Artax currently requires a host, so just use a dummy one.
+    $request = Request::fromString('/info');
+    $response = $client->request($request);
 
-        /** @var Response $response */
-        $response = yield $promise;
+    printf(
+        "HTTP/%s %d %s\n\n",
+        $response->getProtocolVersion(),
+        $response->getStatus(),
+        $response->getReason()
+    );
 
-        printf(
-            "HTTP/%s %d %s\n\n",
-            $response->getProtocolVersion(),
-            $response->getStatus(),
-            $response->getReason()
-        );
-
-        $body = yield $response->getBody();
-        print $body . "\n";
-    } catch (Amp\Artax\HttpException $error) {
-        echo $error;
-    }
-});
+    print $response->getBody()->buffer() . "\n";
+} catch (HttpException | StreamException $error) {
+    print $error;
+}
