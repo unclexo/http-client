@@ -30,31 +30,18 @@ final class Request
     /** @var RequestBody */
     private $body;
 
-    /**
-     * @param string $uri
-     * @param string $method
-     *
-     * @return Request
-     *
-     * @throws HttpException
-     */
-    public static function fromString(string $uri, string $method = "GET"): Request
+    public function __construct($uri, string $method = "GET")
     {
-        try {
-            $parsedUri = Uri\Http::createFromString($uri);
-            if (!$parsedUri instanceof UriInterface) {
-                throw new HttpException("Invalid request URI: {$uri}");
+        if ($uri instanceof UriInterface) {
+            $this->uri = $uri;
+        } else {
+            try {
+                $this->uri = Uri\Http::createFromString($uri);
+            } catch (UriException $exception) {
+                throw new HttpException("Invalid request URI: {$uri}", 0, $exception);
             }
-
-            return new Request($parsedUri, $method);
-        } catch (UriException $exception) {
-            throw new HttpException("Invalid request URI: {$uri}", 0, $exception);
         }
-    }
 
-    public function __construct(PsrUri $uri, string $method = "GET")
-    {
-        $this->uri = $uri;
         $this->method = $method;
         $this->body = new StringBody("");
     }

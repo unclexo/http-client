@@ -3,20 +3,22 @@
 namespace Amp\Artax;
 
 use Amp\Artax\Internal\Parser;
-use Amp\ByteStream\StreamException;
-use Amp\Socket\ClientSocket;
+use Concurrent\Network\SocketException;
+use Concurrent\Network\TcpSocket;
+use Concurrent\Stream\StreamException;
 
 class HttpTunneler
 {
     /**
      * Establish an HTTP tunnel to the specified authority over this socket.
      *
-     * @param ClientSocket $socket
-     * @param string       $authority
+     * @param TcpSocket $socket
+     * @param string    $authority
      *
      * @throws HttpException
+     * @throws SocketException
      */
-    public function tunnel(ClientSocket $socket, string $authority): void
+    public function tunnel(TcpSocket $socket, string $authority): void
     {
         if (!empty(stream_context_get_options($socket->getResource())['artax*']['is_tunneled'])) {
             return;

@@ -2,10 +2,10 @@
 
 namespace Amp\Artax;
 
-use Amp\ByteStream\InMemoryStream;
-use Amp\ByteStream\InputStream;
 use Amp\ByteStream\IteratorStream;
 use Amp\Emitter;
+use Concurrent\Stream\ReadableMemoryStream;
+use Concurrent\Stream\ReadableStream;
 use Concurrent\Task;
 
 final class FormBody implements RequestBody
@@ -23,6 +23,7 @@ final class FormBody implements RequestBody
      */
     public function __construct(string $boundary = null)
     {
+        /** @noinspection PhpUnhandledExceptionInspection */
         $this->boundary = $boundary ?? \bin2hex(\random_bytes(16));
     }
 
@@ -87,13 +88,13 @@ final class FormBody implements RequestBody
         $this->cachedFields = null;
     }
 
-    public function createBodyStream(): InputStream
+    public function createBodyStream(): ReadableStream
     {
         if ($this->isMultipart) {
             return $this->generateMultipartStreamFromFields($this->getMultipartFieldArray());
         }
 
-        return new InMemoryStream($this->getFormEncodedBodyString());
+        return new ReadableMemoryStream($this->getFormEncodedBodyString());
     }
 
     private function getMultipartFieldArray(): array
@@ -140,10 +141,17 @@ final class FormBody implements RequestBody
         return $header;
     }
 
-    private function generateMultipartStreamFromFields(array $fields): InputStream
+    /**
+     * @param $fields
+     *
+     * @return ReadableStream
+     *
+     * @throws HttpException
+     */
+    private function generateMultipartStreamFromFields(array $fields): ReadableStream
     {
         foreach ($fields as $key => $field) {
-            $fields[$key] = $field instanceof FileBody ? $field->createBodyStream() : new InMemoryStream($field);
+            $fields[$key] = $field instanceof FileBody ? $field->createBodyStream() : new ReadableMemoryStream($field);
         }
 
         $emitter = new Emitter;

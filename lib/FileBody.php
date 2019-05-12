@@ -2,9 +2,8 @@
 
 namespace Amp\Artax;
 
-use Amp\ByteStream\InputStream;
-use function Amp\File\open;
-use function Amp\File\size;
+use Concurrent\Stream\ReadableMemoryStream;
+use Concurrent\Stream\ReadableStream;
 
 final class FileBody implements RequestBody
 {
@@ -19,9 +18,15 @@ final class FileBody implements RequestBody
         $this->path = $path;
     }
 
-    public function createBodyStream(): InputStream
+    public function createBodyStream(): ReadableStream
     {
-        return open($this->path, "r");
+        $contents = \file_get_contents($this->path);
+        if ($contents === false) {
+            throw new HttpException("Failed to read file content of '{$this->path}'");
+        }
+
+        // TODO Stream file contents
+        return new ReadableMemoryStream($contents);
     }
 
     public function getHeaders(): array
@@ -31,6 +36,6 @@ final class FileBody implements RequestBody
 
     public function getBodyLength(): int
     {
-        return size($this->path);
+        return \filesize($this->path);
     }
 }

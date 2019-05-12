@@ -2,7 +2,7 @@
 
 namespace Amp\Artax;
 
-use Amp\ByteStream\Message;
+use Amp\ByteStream\Payload;
 
 /**
  * An HTTP response.
@@ -11,7 +11,8 @@ use Amp\ByteStream\Message;
  *
  * `DefaultClient` uses an anonymous class to implement this interface.
  */
-interface Response {
+interface Response
+{
     /**
      * Retrieve the requests's HTTP protocol version.
      *
@@ -115,11 +116,11 @@ interface Response {
     /**
      * Retrieve the response body.
      *
-     * Note: If you stream a Message, you can't consume the payload twice.
+     * Note: If you stream a Payload, you can't consume the payload twice.
      *
-     * @return Message
+     * @return Payload
      */
-    public function getBody(): Message;
+    public function getBody(): Payload;
 
     /**
      * @return MetaInfo

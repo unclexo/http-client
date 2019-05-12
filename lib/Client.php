@@ -3,7 +3,6 @@
 namespace Amp\Artax;
 
 use Amp\Artax\Internal\Parser;
-use Amp\Cancellation\Token;
 
 /**
  * Interface definition for an HTTP client.
@@ -36,11 +35,10 @@ interface Client
      *
      * @param Request $request An HTTP URI string or a Request instance.
      * @param array   $options An array specifying options applicable only for this request.
-     * @param Token   $cancellation A cancellation token to optionally cancel requests.
      *
      * @return Response A promise to resolve to a response object as soon as its headers are received.
      *
      * @throws HttpException
      */
-    public function request(Request $request, array $options = [], Token $cancellation = null): Response;
+    public function request(Request $request, array $options = []): Response;
 }

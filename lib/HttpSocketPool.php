@@ -2,28 +2,32 @@
 
 namespace Amp\Artax;
 
-use Amp\Cancellation\Token;
-use Amp\Socket\BasicSocketPool;
-use Amp\Socket\ClientSocket;
-use Amp\Socket\SocketPool;
-use Amp\Uri\Uri;
+use Concurrent\Network\TcpSocket;
+use League\Uri;
 
-class HttpSocketPool implements SocketPool
+class HttpSocketPool
 {
-    public const OP_PROXY_HTTP = 'amp.artax.httpsocketpool.proxy-http';
-    public const OP_PROXY_HTTPS = 'amp.artax.httpsocketpool.proxy-https';
+    public const OPTION_PROXY_HTTP = 'amp.artax.httpsocketpool.proxy-http';
+    public const OPTION_PROXY_HTTPS = 'amp.artax.httpsocketpool.proxy-https';
 
-    private $socketPool;
+    /** @var HttpSocket */
+    private $sockets = [];
+    private $socketIdUriMap = [];
+    private $pendingCount = [];
+
+    private $idleTimeout;
+    private $socketContext;
+
     private $tunneler;
 
     private $options = [
-        self::OP_PROXY_HTTP => null,
-        self::OP_PROXY_HTTPS => null,
+        self::OPTION_PROXY_HTTP => null,
+        self::OPTION_PROXY_HTTPS => null,
     ];
 
-    public function __construct(SocketPool $sockPool = null, HttpTunneler $tunneler = null)
+    public function __construct(int $idleTimeout, HttpTunneler $tunneler = null)
     {
-        $this->socketPool = $sockPool ?? new BasicSocketPool;
+        $this->idleTimeout = $idleTimeout;
         $this->tunneler = $tunneler ?? new HttpTunneler;
         $this->autoDetectProxySettings();
     }
@@ -38,32 +42,32 @@ class HttpSocketPool implements SocketPool
         }
 
         if (($httpProxy = \getenv('http_proxy')) || ($httpProxy = \getenv('HTTP_PROXY'))) {
-            $this->options[self::OP_PROXY_HTTP] = $this->getUriAuthority($httpProxy);
+            $this->options[self::OPTION_PROXY_HTTP] = $this->getUriAuthority($httpProxy);
         }
 
         if (($httpsProxy = \getenv('https_proxy')) || ($httpsProxy = \getenv('HTTPS_PROXY'))) {
-            $this->options[self::OP_PROXY_HTTPS] = $this->getUriAuthority($httpsProxy);
+            $this->options[self::OPTION_PROXY_HTTPS] = $this->getUriAuthority($httpsProxy);
         }
     }
 
     private function getUriAuthority(string $uri): string
     {
-        $parsedUri = new Uri($uri);
+        $parsedUri = Uri\parse($uri);
 
-        return $parsedUri->getHost() . ":" . $parsedUri->getPort();
+        return $parsedUri['host'] . ":" . $parsedUri['port'];
     }
 
     /** @inheritdoc */
-    public function checkout(string $uri, Token $cancellationToken = null): ClientSocket
+    public function checkout(string $uri): TcpSocket
     {
-        $parsedUri = new Uri($uri);
+        $parsedUri = Uri\parse($uri);
 
-        $scheme = $parsedUri->getScheme();
+        $scheme = $parsedUri['scheme'];
 
         if ($scheme === 'tcp' || $scheme === 'http') {
-            $proxy = $this->options[self::OP_PROXY_HTTP];
+            $proxy = $this->options[self::OPTION_PROXY_HTTP];
         } elseif ($scheme === 'tls' || $scheme === 'https') {
-            $proxy = $this->options[self::OP_PROXY_HTTPS];
+            $proxy = $this->options[self::OPTION_PROXY_HTTPS];
         } else {
             throw new \Error(
                 'Either tcp://, tls://, http:// or https:// URI scheme required for HTTP socket checkout'
@@ -73,13 +77,18 @@ class HttpSocketPool implements SocketPool
         // The underlying TCP pool will ignore the URI fragment when connecting but retain it in the
         // name when tracking hostname connection counts. This allows us to expose host connection
         // limits transparently even when connecting through a proxy.
-        $authority = $parsedUri->getHost() . ":" . $parsedUri->getPort();
+        $authority = $parsedUri['host'] . ":" . $parsedUri['port'];
 
-        if (!$proxy) {
-            return $this->socketPool->checkout("tcp://{$authority}", $cancellationToken);
+
+        if (empty($this->sockets[$uri])) {
+            $socket = $this->checkoutNewSocket($uri, $token);
         }
 
-        $socket = $this->socketPool->checkout("tcp://{$proxy}#{$authority}", $cancellationToken);
+        if (!$proxy) {
+            return $this->doCheckout("tcp://{$authority}");
+        }
+
+        $socket = $this->doCheckout("tcp://{$proxy}#{$authority}");
         $this->tunneler->tunnel($socket, $authority);
 
         return $socket;
@@ -101,14 +110,42 @@ class HttpSocketPool implements SocketPool
     public function setOption(string $option, $value): void
     {
         switch ($option) {
-            case self::OP_PROXY_HTTP:
-                $this->options[self::OP_PROXY_HTTP] = (string) $value;
+            case self::OPTION_PROXY_HTTP:
+                $this->options[self::OPTION_PROXY_HTTP] = (string) $value;
                 break;
-            case self::OP_PROXY_HTTPS:
-                $this->options[self::OP_PROXY_HTTPS] = (string) $value;
+            case self::OPTION_PROXY_HTTPS:
+                $this->options[self::OPTION_PROXY_HTTPS] = (string) $value;
                 break;
             default:
                 throw new \Error("Invalid option: $option");
         }
+    }
+
+    private function checkoutExistingSocket(string $uri): ?TcpSocket
+    {
+        if (empty($this->sockets[$uri])) {
+            return null;
+        }
+
+        foreach ($this->sockets[$uri] as $socketId => $socket) {
+            if ($socket->inUse) {
+                continue;
+            }
+
+            if ($socket->socket) {
+                $this->clear(new ClientSocket($socket->resource));
+                continue;
+            }
+
+            $socket->isAvailable = false;
+
+            if ($socket->idleWatcher !== null) {
+                Loop::disable($socket->idleWatcher);
+            }
+
+            return new ClientSocket($socket->resource);
+        }
+
+        return $this->checkoutNewSocket($uri, $token);
     }
 }

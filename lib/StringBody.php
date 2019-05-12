@@ -2,8 +2,8 @@
 
 namespace Amp\Artax;
 
-use Amp\ByteStream\InMemoryStream;
-use Amp\ByteStream\InputStream;
+use Concurrent\Stream\ReadableMemoryStream;
+use Concurrent\Stream\ReadableStream;
 
 final class StringBody implements RequestBody
 {
@@ -14,9 +14,9 @@ final class StringBody implements RequestBody
         $this->body = $body;
     }
 
-    public function createBodyStream(): InputStream
+    public function createBodyStream(): ReadableStream
     {
-        return new InMemoryStream($this->body);
+        return new ReadableMemoryStream($this->body);
     }
 
     public function getHeaders(): array
