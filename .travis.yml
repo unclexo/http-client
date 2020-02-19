@@ -16,6 +16,10 @@ jobs:
 env:
   - AMP_DEBUG=true
 
+before_install:
+  - phpenv config-rm xdebug.ini || echo "No xdebug config."
+  - travis/install-pcov.sh
+
 install:
   - if [ "$TRAVIS_PHP_VERSION" = "nightly" ]; then
       composer update -n --prefer-dist --ignore-platform-reqs;
