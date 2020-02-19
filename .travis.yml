@@ -8,18 +8,13 @@ php:
   - 7.4
   - nightly
 
-matrix:
+jobs:
   allow_failures:
-    - php: 7.4
     - php: nightly
   fast_finish: true
 
 env:
   - AMP_DEBUG=true
-
-before_install:
-  - phpenv config-rm xdebug.ini || echo "No xdebug config."
-  - travis/install-pcov.sh
 
 install:
   - if [ "$TRAVIS_PHP_VERSION" = "nightly" ]; then
