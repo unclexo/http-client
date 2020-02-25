@@ -196,9 +196,7 @@ final class CountLimitingConnectionPool implements ConnectionPool
                 if ($this->shouldMakeNewConnection($uri)) {
                     break;
                 }
-
-                yield $deferredPromise;
-            } while (true);
+            } while (yield $deferredPromise);
 
             $this->totalConnectionAttempts++;
 
@@ -247,15 +245,9 @@ final class CountLimitingConnectionPool implements ConnectionPool
             \assert($connection instanceof Connection);
 
             $stream = yield $connection->getStream($request);
+        } while ($stream === null); // Reused connection did not have a stream.
 
-            if ($stream === null) {
-                continue; // Reused connection did not have a stream.
-            }
-
-            \assert($stream instanceof Stream);
-
-            return [$connection, $stream];
-        } while (true);
+        return [$connection, $stream];
     }
 
     private function shouldMakeNewConnection(string $uri): bool
