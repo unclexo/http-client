@@ -112,10 +112,7 @@ final class Http1Connection implements Connection
 
     public function close(): Promise
     {
-        if ($this->socket) {
-            $this->socket->close();
-        }
-
+        $this->socket->close();
         return $this->free();
     }
 
@@ -156,7 +153,6 @@ final class Http1Connection implements Connection
 
     private function free(): Promise
     {
-        $this->socket = null;
         $this->lastUsedAt = 0;
 
         if ($this->timeoutWatcher !== null) {
@@ -278,14 +274,13 @@ final class Http1Connection implements Connection
 
         $start = Loop::now();
         $timeout = $request->getInactivityTimeout();
-        if ($timeout <= 0) {
-            $timeout = self::MAX_KEEP_ALIVE_TIMEOUT * 1000;
-        }
 
         try {
-            while (null !== $chunk = yield Promise\timeout($this->socket->read(), $timeout)) {
-                parseChunk:
-                $response = $parser->parse($chunk);
+            while (null !== $chunk = yield $timeout > 0
+                    ? Promise\timeout($this->socket->read(), $timeout)
+                    : $this->socket->read()
+            ) {
+                parseChunk: $response = $parser->parse($chunk);
                 if ($response === null) {
                     continue;
                 }
@@ -391,10 +386,13 @@ final class Http1Connection implements Connection
                                     if (!$backpressure instanceof Success) {
                                         yield $this->withCancellation($backpressure, $bodyCancellationToken);
                                     }
-                                } while (null !== $chunk = yield Promise\timeout($this->socket->read(), $timeout));
+                                } while (null !== $chunk = yield $timeout > 0
+                                    ? Promise\timeout($this->socket->read(), $timeout)
+                                    : $this->socket->read()
+                                );
                             } catch (PromiseTimeoutException $e) {
                                 $this->close();
-                                throw new TimeoutException('Receiving the response timed out due to inactivity', 0, $e);
+                                throw new TimeoutException('Inactivity timeout exceeded, took longer than ' . $timeout . ' ms', 0, $e);
                             }
 
                             $originalCancellation->throwIfRequested();
@@ -457,6 +455,9 @@ final class Http1Connection implements Connection
                 \strlen($parser->getBuffer()),
                 Loop::now() - $start
             ));
+        } catch (HttpException $e) {
+            $this->close();
+            throw $e;
         } catch (PromiseTimeoutException $e) {
             $this->close();
             throw new TimeoutException('Receiving the response timed out due to inactivity', 0, $e);
